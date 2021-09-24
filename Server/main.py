@@ -2,8 +2,8 @@ from classes import *
 
 #server = Server()
 #server.run()
-player_1 = Player(1)
-player_2 = Player(2)
+player_1 = Player('Mike')
+player_2 = Player('John')
 game = Game(player_1, player_2)
 turns = [
     [
@@ -48,6 +48,6 @@ for board in turns:
         break
 
 if winner:
-    print(f'player # {winner.id} Won!!')
+    print(f'{winner.name} Won!!')
 else:
     print('It is a tie')

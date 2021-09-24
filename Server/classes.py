@@ -1,12 +1,12 @@
 import socket
 
 class Player():
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, name):
+        self.name = name
 
 class Client(Player):
-    def __init__(self, id, connection, address):
-        super().__init__(id)
+    def __init__(self, name, connection, address):
+        super().__init__(name)
         self.connection = connection
         self.address = address
 
