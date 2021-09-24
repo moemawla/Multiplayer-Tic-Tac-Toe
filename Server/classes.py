@@ -118,9 +118,47 @@ class Server():
             print(f'Connected by {address}')
 
         print(f'{len(self.clients)} clients are now connected')
-        print('Starting the game')
-        self.play_game()
-        self.socket.close()
+
+        try:
+            print('Starting the game')
+            self.play_game()
+        except Exception as e:
+            print(e)
+        finally:
+            self.socket.close()
+
+    def play_game(self):
+        game = Game(self.clients[0], self.clients[1])
+        winner = None
+
+        while True:
+            player = self.get_current_player()
+            board = json.dumps(game.get_board_copy())
+            updated_board = self.get_player_move(player, board)
+
+            try:
+                game.process(player, updated_board)
+                winner = game.is_won()
+            except Exception as e:
+                print(f'Faced error during {player.name}\'s turn: ', e)
+                continue
+
+            if winner:
+                break
+            self.change_turn()
+
+        if winner:
+            print(f'{winner.name} Won')
+        else:
+            print('It is a tie')
+
+        for client in self.clients:
+            if not winner:
+                self.send_message_to_player(client, 'TIE')
+            elif winner == client:
+                self.send_message_to_player(client, 'WON')
+            else:
+                self.send_message_to_player(client, 'LOST')
 
     def change_turn(self):
         if self.turn == 0:
@@ -143,26 +181,6 @@ class Server():
         print(input)
         return json.loads(input)
 
-    def play_game(self):
-        game = Game(self.clients[0], self.clients[1])
-        winner = None
-
-        while True:
-            player = self.get_current_player()
-            board = json.dumps(game.get_board_copy())
-            updated_board = self.get_player_move(player, board)
-            print(updated_board)
-            try:
-                game.process(player, updated_board)
-            except Exception as e:
-                print(e)
-                continue
-            winner = game.is_won()
-            if winner:
-                break
-            self.change_turn()
-        
-        if winner:
-            print(f'{winner.name} Won!')
-        else:
-            print('It is a tie')
+    def send_message_to_player(self, player, message):
+        connection = player.connection
+        connection.sendall(bytes(message, 'utf-8'))
