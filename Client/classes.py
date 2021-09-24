@@ -1,4 +1,5 @@
 import socket
+import json
 
 class Client():
     SERVER_PORT = 65432
@@ -9,11 +10,15 @@ class Client():
     def connect(self):
         self.socket.connect(('127.0.0.1', self.SERVER_PORT))
 
-        message_to_send = input('What would you like to send to the server? \n')
-        self.socket.sendall(bytes(message_to_send, 'utf-8'))
-
         received_message = self.socket.recv(1024)
         print('You received from the server this message:')
         print(repr(received_message))
 
+        board = [
+            ['X', ' ', ' '],
+            [' ', ' ', ' '],
+            [' ', ' ', ' ']
+        ]
+        board = json.dumps(board)
+        self.socket.sendall(bytes(board, 'utf-8'))
         self.socket.close()

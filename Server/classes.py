@@ -1,4 +1,6 @@
 import socket
+import copy
+import json
 
 class Player():
     def __init__(self, name):
@@ -35,6 +37,9 @@ class Game():
             [' ', ' ', ' '],
             [' ', ' ', ' ']
         ]
+    
+    def get_board_copy(self):
+        return copy.deepcopy(self.board)
 
     def validate_board(self, updated_board):
         number_of_changes = 0
@@ -101,6 +106,7 @@ class Server():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(('', self.PORT))
         self.clients = []
+        self.turn = 0
 
     def run(self):
         self.socket.listen()
@@ -108,19 +114,55 @@ class Server():
 
         while len(self.clients) < 2:
             connection, address = self.socket.accept()
-            self.clients.append((connection, address))
+            self.clients.append(Client(f'Player {len(self.clients) + 1}', connection, address))
             print(f'Connected by {address}')
 
-        print(f'{len(self.clients)} are now connected')
-
-        for client in self.clients:
-            while True:
-                connection = client[0]
-                data = connection.recv(1024)
-                if not data:
-                    break
-                print(f'Client {client[1]} sent this message:')
-                print(repr(data))
-                connection.sendall(data.upper())
-
+        print(f'{len(self.clients)} clients are now connected')
+        print('Starting the game')
+        self.play_game()
         self.socket.close()
+
+    def change_turn(self):
+        if self.turn == 0:
+            self.turn = 1
+        else:
+            self.turn = 0
+
+    def get_current_player(self) -> Client:
+        return self.clients[self.turn]
+
+    def get_player_move(self, player, data):
+        connection = player.connection
+        connection.sendall(bytes(data, 'utf-8'))
+
+        input = connection.recv(1024)
+        if not input:
+            return None
+
+        print(f'{player.name} sent this message:')
+        print(input)
+        return json.loads(input)
+
+    def play_game(self):
+        game = Game(self.clients[0], self.clients[1])
+        winner = None
+
+        while True:
+            player = self.get_current_player()
+            board = json.dumps(game.get_board_copy())
+            updated_board = self.get_player_move(player, board)
+            print(updated_board)
+            try:
+                game.process(player, updated_board)
+            except Exception as e:
+                print(e)
+                continue
+            winner = game.is_won()
+            if winner:
+                break
+            self.change_turn()
+        
+        if winner:
+            print(f'{winner.name} Won!')
+        else:
+            print('It is a tie')
