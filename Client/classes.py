@@ -62,6 +62,9 @@ class Client():
 
         try:
             self.play_game()
+        except KeyboardInterrupt:
+            os.system("clear")
+            print('Bye!')
         except Exception as e:
             print(e)
         finally:
