@@ -31,6 +31,7 @@ class Game():
 
         self.player_1 = player_1
         self.player_2 = player_2
+        self.winner = None
         self.board = [
             [' ', ' ', ' '],
             [' ', ' ', ' '],
@@ -74,14 +75,22 @@ class Game():
         updated_row, updated_column = self.validate_board(updated_board)
         self.board[updated_row][updated_column] = self.get_value_from_player(player)
 
-    def is_won(self):
+    def is_a_win(self):
         for scenario in self.WIN_MAP:
             value_1 = self.board[scenario[0][0]][scenario[0][1]]
             value_2 = self.board[scenario[1][0]][scenario[1][1]]
             value_3 = self.board[scenario[2][0]][scenario[2][1]]
             if value_1 == value_2 == value_3 != ' ':
-                return self.get_player_from_value(value_1)
+                self.winner = self.get_player_from_value(value_1)
+                return True
         return False
+
+    def is_a_tie(self):
+        for row in self.board:
+            for cell in row:
+                if cell == ' ':
+                    return False
+        return True
 
     def get_value_from_player(self, player):
         self.validate_player(player)
@@ -128,7 +137,6 @@ class Server():
 
     def play_game(self):
         game = Game(self.clients[0], self.clients[1])
-        winner = None
 
         while True:
             player = self.get_current_player()
@@ -138,15 +146,15 @@ class Server():
 
             try:
                 game.process(player, updated_board)
-                winner = game.is_won()
+                if game.is_a_win() or game.is_a_tie():
+                    break
             except Exception as e:
                 print(f'Faced error during {player.name}\'s turn: ', e)
                 continue
 
-            if winner:
-                break
             self.change_turn()
 
+        winner = game.winner
         if winner:
             print(f'{winner.name} Won')
         else:
