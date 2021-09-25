@@ -122,8 +122,14 @@ class Server():
 
         while len(self.clients) < 2:
             connection, address = self.socket.accept()
-            self.clients.append(Client(f'Player {len(self.clients) + 1}', connection, address))
-            print(f'Connected by {address}')
+            client = Client(f'Player {len(self.clients) + 1}', connection, address)
+            self.clients.append(client)
+
+            print(f'{client.name} connected by {client.address}')
+            if len(self.clients) == 1:
+                self.send_message_to_player(client, 'Welcome! Waiting for a second player to join')
+            else:
+                self.send_message_to_player(client, 'Welcome!')
 
         print(f'{len(self.clients)} clients are now connected')
 
@@ -135,14 +141,29 @@ class Server():
         finally:
             self.socket.close()
 
+    def get_other_client(self, client):
+        if self.clients[0] == client:
+            return self.clients[1]
+        return self.clients[0]
+
     def play_game(self):
         game = Game(self.clients[0], self.clients[1])
+        
+        for client in self.clients:
+            self.send_message_to_player(client, 'START')
 
         while True:
             player = self.get_current_player()
+            other_player = self.get_other_client(player)
+            self.send_message_to_player(other_player, 'WAIT')
+
             json_board = json.dumps(game.get_board_copy())
             updated_board = self.get_player_move(player, json_board)
-            # TODO: handle case if updated_board is None
+
+            if not updated_board:
+                print(f'{player.name} disconnected')
+                self.send_message_to_player(other_player, 'Oops! Your opponent disconnected')
+                return
 
             try:
                 game.process(player, updated_board)
@@ -184,7 +205,8 @@ class Server():
         input = connection.recv(1024)
         if not input:
             return None
-
+        
+        input = input.decode("utf-8")
         print(f'{player.name} sent this message:')
         print(input)
         return json.loads(input)
