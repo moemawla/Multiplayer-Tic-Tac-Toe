@@ -13,6 +13,7 @@ class Client(Player):
         self.address = address
 
 class Game():
+    BOARD_DIMENSION = 3
     WIN_MAP = (
         ((0,0), (0,1), (0,2)),
         ((1,0), (1,1), (1,2)),
@@ -23,8 +24,6 @@ class Game():
         ((0,0), (1,1), (2,2)),
         ((0,2), (1,1), (2,0))
     )
-
-    BOARD_DIMENSION = 3
 
     def __init__(self, player_1, player_2):
         if (not isinstance(player_1, Player)) or (not isinstance(player_2, Player)) or (player_1 == player_2):
@@ -133,8 +132,9 @@ class Server():
 
         while True:
             player = self.get_current_player()
-            board = json.dumps(game.get_board_copy())
-            updated_board = self.get_player_move(player, board)
+            json_board = json.dumps(game.get_board_copy())
+            updated_board = self.get_player_move(player, json_board)
+            # TODO: handle case if updated_board is None
 
             try:
                 game.process(player, updated_board)
