@@ -9,12 +9,11 @@ class GameHelper:
     def validate_board(self, board):
         if (not isinstance(board, list)) or len(board) != self.BOARD_DIMENSION:
             raise ValueError('The provided board is corrupted!')
-        for row_index, row in enumerate(board):
+        for row in board:
             if (not isinstance(row, list)) or len(row) != self.BOARD_DIMENSION:
                 raise ValueError('The provided board is corrupted!')
 
     def get_coordinates_from_user(self):
-        coordinates = None
         try:
             while True:
                 coordinates = input('Which cell you want to fill? ')
@@ -35,33 +34,42 @@ class GameHelper:
     def get_updated_board(self, board):
         self.validate_board(board)
         self.print_board(board)
-        input = self.get_coordinates_from_user()
-        if not input:
-            return None
-        row, column = input
-        board[row][column] = '#'
-        return board
+        while True:
+            input = self.get_coordinates_from_user()
+            if not input:
+                return None
+
+            row, column = input
+            if board[row][column] != ' ':
+                print('Please choose an empty cell!')
+                continue
+
+            # it doesn't matter what we fill the cell with
+            # the server will replace it with the correct value for each player
+            board[row][column] = '#'
+            return board
+
 class Client():
+    SERVER_IP = '127.0.0.1'
     SERVER_PORT = 65432
 
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.start_game = False
-        self.continue_game = False
+        self.play_game = False
         self.wait = False
 
     def run(self):
-        self.socket.connect(('127.0.0.1', self.SERVER_PORT))
+        self.socket.connect((self.SERVER_IP, self.SERVER_PORT))
 
         while True:
             received_message = self.socket.recv(1024)
             received_message = received_message.decode("utf-8")
             self.process_server_message(received_message)
-            if self.start_game:
+            if self.play_game:
                 break
 
         try:
-            self.play_game()
+            self.play()
         except KeyboardInterrupt:
             os.system("clear")
             print('Bye!')
@@ -70,16 +78,16 @@ class Client():
         finally:
             self.socket.close()
 
-    def play_game(self):
+    def play(self):
         game_helper = GameHelper()
         while True:
             received_message = self.socket.recv(1024)
             received_message = received_message.decode("utf-8")
             self.process_server_message(received_message)
 
-            if not self.continue_game:
+            if not self.play_game:
                 print('Game ended')
-                break
+                return
 
             if self.wait:
                 continue
@@ -95,30 +103,37 @@ class Client():
             self.socket.sendall(bytes(json_board, 'utf-8'))
 
     def process_server_message(self, message):
+        # checking first if the message is the game board
         try:
             board = json.loads(message)
             if isinstance(board, list):
                 self.wait = False
                 return
         except:
+            # the message was not a JSON
             pass
         
+        # using the in operator because in some cases the old message is sent prepended to the current message.
+        # using multiple if statements instead of elif for the same reason.
+        # might be because the network buffer wasn't emptied correctly on the server.
+
         if 'START' in message:
-            self.start_game = True
-            self.continue_game = True
-            print('Game started! Wait for your turn')
-        elif 'WAIT' in message:
+            self.play_game = True
+            print('Game started!')
+            return
+        
+        if 'WAIT' in message:
             self.wait = True
             print('Your opponent\'s turn')
-        elif 'WON' in message:
-            self.continue_game = False
+            return
+        
+        self.play_game = False
+
+        if 'WON' in message:
             print('Congrats! You won!')
         elif 'LOST' in message:
-            self.continue_game = False
             print('Better luck next time')
         elif 'TIE' in message:
-            self.continue_game = False
             print('It is a tie!')
         else:
-            self.continue_game = False
             print(message)

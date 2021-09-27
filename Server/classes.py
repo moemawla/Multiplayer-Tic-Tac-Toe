@@ -32,6 +32,7 @@ class Game():
         self.player_1 = player_1
         self.player_2 = player_2
         self.winner = None
+        self.ended = False
         self.board = [
             [' ', ' ', ' '],
             [' ', ' ', ' '],
@@ -54,12 +55,12 @@ class Game():
             for column_index, value in enumerate(row):
                 if value != self.board[row_index][column_index]:
                     if self.board[row_index][column_index] != ' ':
-                        raise ValueError('Board should be updated at a single empty cell!')
+                        raise ValueError('Non-empty cell was updated!')
                     number_of_changes += 1
                     changed_cell = (row_index, column_index)
         
         if number_of_changes != 1:
-            raise ValueError('Board should be updated at a single empty cell!')
+            raise ValueError('Multiple cells updated!')
         
         return changed_cell
 
@@ -73,7 +74,10 @@ class Game():
     def process(self, player, updated_board):
         self.validate_player(player)
         updated_row, updated_column = self.validate_board(updated_board)
-        self.board[updated_row][updated_column] = self.get_value_from_player(player)
+        self.board[updated_row][updated_column] = self.get_player_token(player)
+        # check if there is a win or a tie and mark the game as ended
+        if self.is_a_win() or self.is_a_tie():
+            self.ended = True
 
     def is_a_win(self):
         for scenario in self.WIN_MAP:
@@ -81,7 +85,7 @@ class Game():
             value_2 = self.board[scenario[1][0]][scenario[1][1]]
             value_3 = self.board[scenario[2][0]][scenario[2][1]]
             if value_1 == value_2 == value_3 != ' ':
-                self.winner = self.get_player_from_value(value_1)
+                self.winner = self.get_player_from_token(value_1)
                 return True
         return False
 
@@ -92,14 +96,14 @@ class Game():
                     return False
         return True
 
-    def get_value_from_player(self, player):
+    def get_player_token(self, player):
         self.validate_player(player)
 
         if player == self.player_1:
             return 'X'
         return 'O'
 
-    def get_player_from_value(self, value):
+    def get_player_from_token(self, value):
         if value == 'X':
             return self.player_1
         elif value == 'O':
@@ -118,18 +122,17 @@ class Server():
 
     def run(self):
         self.socket.listen()
-        print(f'Listening for incoming connection on port {self.PORT}')
+        print(f'Listening for incoming connections on port {self.PORT}')
 
         while len(self.clients) < 2:
             connection, address = self.socket.accept()
-            client = Client(f'Player {len(self.clients) + 1}', connection, address)
-            self.clients.append(client)
-
-            print(f'{client.name} connected by {client.address}')
+            player = Client(f'Player {len(self.clients) + 1}', connection, address)
+            print(f'{player.name} connected by {player.address}')
+            self.clients.append(player)
             if len(self.clients) == 1:
-                self.send_message_to_player(client, 'Welcome! Waiting for a second player to join')
+                self.send_message_to_player(player, 'Welcome! Waiting for a second player to join')
             else:
-                self.send_message_to_player(client, 'Welcome!')
+                self.send_message_to_player(player, 'Welcome!')
 
         print(f'{len(self.clients)} clients are now connected')
 
@@ -141,62 +144,52 @@ class Server():
         finally:
             self.socket.close()
 
-    def get_other_client(self, client):
-        if self.clients[0] == client:
-            return self.clients[1]
-        return self.clients[0]
-
     def play_game(self):
         game = Game(self.clients[0], self.clients[1])
         
-        for client in self.clients:
-            self.send_message_to_player(client, 'START')
+        for player in self.clients:
+            self.send_message_to_player(player, 'START')
 
         while True:
-            player = self.get_current_player()
-            other_player = self.get_other_client(player)
+            current_player = self.get_current_player()
+
+            # inform the other player that it is his opponent's turn
+            other_player = self.get_other_player(current_player)
             self.send_message_to_player(other_player, 'WAIT')
 
             json_board = json.dumps(game.get_board_copy())
-            updated_board = self.get_player_move(player, json_board)
+            updated_board = self.get_player_move(current_player, json_board)
 
             if not updated_board:
-                print(f'{player.name} disconnected')
+                print(f'{current_player.name} disconnected')
                 self.send_message_to_player(other_player, 'Oops! Your opponent disconnected')
                 return
 
             try:
-                game.process(player, updated_board)
-                if game.is_a_win() or game.is_a_tie():
+                game.process(current_player, updated_board)
+                if game.ended:
                     break
             except Exception as e:
-                print(f'Faced error during {player.name}\'s turn: ', e)
-                continue
+                # unexpected exception and the game must be stopped
+                print(f'Faced error during {current_player.name}\'s turn: ', e)
+                for player in self.clients:
+                    self.send_message_to_player(player, 'Oops! Game crashed')
+                return
 
             self.change_turn()
 
-        winner = game.winner
-        if winner:
-            print(f'{winner.name} Won')
-        else:
-            print('It is a tie')
-
-        for client in self.clients:
-            if not winner:
-                self.send_message_to_player(client, 'TIE')
-            elif winner == client:
-                self.send_message_to_player(client, 'WON')
-            else:
-                self.send_message_to_player(client, 'LOST')
+        self.send_game_results(game.winner)
 
     def change_turn(self):
-        if self.turn == 0:
-            self.turn = 1
-        else:
-            self.turn = 0
+        self.turn = 1 if self.turn == 0 else 0
 
-    def get_current_player(self) -> Client:
+    def get_current_player(self):
         return self.clients[self.turn]
+
+    def get_other_player(self, player):
+        if self.clients[0] == player:
+            return self.clients[1]
+        return self.clients[0]
 
     def get_player_move(self, player, data):
         connection = player.connection
@@ -214,3 +207,17 @@ class Server():
     def send_message_to_player(self, player, message):
         connection = player.connection
         connection.sendall(bytes(message, 'utf-8'))
+
+    def send_game_results(self, winner):
+        if winner:
+            print(f'{winner.name} Won')
+        else:
+            print('It is a tie')
+
+        for client in self.clients:
+            if not winner:
+                self.send_message_to_player(client, 'TIE')
+            elif winner == client:
+                self.send_message_to_player(client, 'WON')
+            else:
+                self.send_message_to_player(client, 'LOST')
