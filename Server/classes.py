@@ -121,6 +121,21 @@ class Server():
         self.turn = 0
 
     def run(self):
+        try:
+            self.accept_clients()
+            print(f'{len(self.clients)} clients are now connected')
+            print('Starting the game')
+            self.play_game()
+        except KeyboardInterrupt:
+            for player in self.clients:
+                self.send_message_to_player(player, 'Server stopped!')
+            print('Bye!')
+        except Exception as e:
+            print(e)
+        finally:
+            self.socket.close()
+
+    def accept_clients(self):
         self.socket.listen()
         print(f'Listening for incoming connections on port {self.PORT}')
 
@@ -133,16 +148,6 @@ class Server():
                 self.send_message_to_player(player, 'Welcome! Waiting for a second player to join')
             else:
                 self.send_message_to_player(player, 'Welcome!')
-
-        print(f'{len(self.clients)} clients are now connected')
-
-        try:
-            print('Starting the game')
-            self.play_game()
-        except Exception as e:
-            print(e)
-        finally:
-            self.socket.close()
 
     def play_game(self):
         game = Game(self.clients[0], self.clients[1])
