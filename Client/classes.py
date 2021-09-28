@@ -117,7 +117,7 @@ class Client():
         # using multiple if statements instead of elif for the same reason.
         # might be because the network buffer wasn't emptied correctly on the server.
 
-        if 'START' in message:
+        if ('START' in message) and (self.play_game == False):
             self.play_game = True
             print('Game started!')
             return
