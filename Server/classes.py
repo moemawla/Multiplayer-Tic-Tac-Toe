@@ -192,20 +192,22 @@ class Server():
         return self.clients[0]
 
     def get_player_move(self, player, data):
-        connection = player.connection
-        connection.sendall(bytes(data, 'utf-8'))
+        self.send_message_to_player(player, data)
 
+        connection = player.connection
         input = connection.recv(1024)
         if not input:
             return None
         
-        input = input.decode("utf-8")
+        input = input.decode('utf-8')
         print(f'{player.name} sent this message:')
         print(input)
         return json.loads(input)
 
     def send_message_to_player(self, player, message):
         connection = player.connection
+        # add delimeter after the message
+        message = f'{message}-'
         connection.sendall(bytes(message, 'utf-8'))
 
     def send_game_results(self, winner):

@@ -25,7 +25,7 @@ class GameHelper:
 
     def print_board(self, board):
         self.validate_board(board)
-        os.system("clear")
+        os.system('clear')
         for row_index, row in enumerate(board):
             print(row[0], '|', row[1], '|', row[2])
             if row_index != 2:
@@ -56,14 +56,13 @@ class Client():
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.play_game = False
-        self.wait = False
 
     def run(self):
         self.socket.connect((self.SERVER_IP, self.SERVER_PORT))
 
         while True:
             received_message = self.socket.recv(1024)
-            received_message = received_message.decode("utf-8")
+            received_message = received_message.decode('utf-8')
             self.process_server_message(received_message)
             if self.play_game:
                 break
@@ -71,7 +70,7 @@ class Client():
         try:
             self.play()
         except KeyboardInterrupt:
-            os.system("clear")
+            os.system('clear')
             print('Bye!')
         except Exception as e:
             print(e)
@@ -82,58 +81,56 @@ class Client():
         game_helper = GameHelper()
         while True:
             received_message = self.socket.recv(1024)
-            received_message = received_message.decode("utf-8")
-            self.process_server_message(received_message)
+            received_message = received_message.decode('utf-8')
+            board = self.process_server_message(received_message)
 
             if not self.play_game:
                 print('Game ended')
                 return
 
-            if self.wait:
+            if not board:
                 continue
             
-            board = json.loads(received_message)
             updated_board = game_helper.get_updated_board(board)
             if not updated_board:
-                os.system("clear")
+                os.system('clear')
                 print('Bye!')
                 break
 
             json_board = json.dumps(updated_board)
             self.socket.sendall(bytes(json_board, 'utf-8'))
 
-    def process_server_message(self, message):
-        # checking first if the message is the game board
-        try:
-            board = json.loads(message)
-            if isinstance(board, list):
-                self.wait = False
-                return
-        except:
-            # the message was not a JSON
-            pass
+    def process_server_message(self, server_message):
+        messages = server_message.split('-')
         
-        # using the in operator because in some cases the old message is sent prepended to the current message.
-        # using multiple if statements instead of elif for the same reason.
-        # might be because the network buffer wasn't emptied correctly on the server.
+        for message in messages:
+            if not message:
+                # skipping the empty message after the last delimiter
+                continue
 
-        if ('START' in message) and (self.play_game == False):
-            self.play_game = True
-            print('Game started!')
-            return
-        
-        if 'WAIT' in message:
-            self.wait = True
-            print('Your opponent\'s turn')
-            return
-        
-        self.play_game = False
-
-        if 'WON' in message:
-            print('Congrats! You won!')
-        elif 'LOST' in message:
-            print('Better luck next time')
-        elif 'TIE' in message:
-            print('It is a tie!')
-        else:
-            print(message)
+            # checking first if the message is the game board
+            try:
+                board = json.loads(message)
+                if isinstance(board, list):
+                    return board
+            except:
+                # the message was not a JSON
+                pass
+            
+            if 'START' == message:
+                self.play_game = True
+                print('Game started!')
+            elif 'WAIT' == message:
+                print('Your opponent\'s turn')
+            elif 'WON' == message:
+                self.play_game = False
+                print('Congrats! You won!')
+            elif 'LOST' == message:
+                self.play_game = False
+                print('Better luck next time')
+            elif 'TIE' == message:
+                self.play_game = False
+                print('It is a tie!')
+            else:
+                self.play_game = False
+                print(message)
