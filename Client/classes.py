@@ -128,18 +128,18 @@ class Client():
                 # the message was not a JSON
                 pass
             
-            if 'START' == message:
+            if message == 'START':
                 self.play_game = True
                 print('Game started!')
-            elif 'WAIT' == message:
+            elif message == 'WAIT':
                 print('Your opponent\'s turn')
-            elif 'WON' == message:
+            elif message == 'WON':
                 self.play_game = False
                 print('Congrats! You won!')
-            elif 'LOST' == message:
+            elif message == 'LOST':
                 self.play_game = False
                 print('Better luck next time')
-            elif 'TIE' == message:
+            elif message == 'TIE':
                 self.play_game = False
                 print('It is a tie!')
             else:
