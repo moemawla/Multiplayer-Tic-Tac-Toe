@@ -1,6 +1,7 @@
 import socket
 import json
 import os
+import re
 
 class GameHelper:
     ALLOWED_COORDINATES = {'0', '1', '2'}
@@ -50,7 +51,6 @@ class GameHelper:
             return board
 
 class Client():
-    SERVER_IP = '127.0.0.1'
     SERVER_PORT = 65432
 
     def __init__(self):
@@ -58,7 +58,7 @@ class Client():
         self.play_game = False
 
     def run(self):
-        self.socket.connect((self.SERVER_IP, self.SERVER_PORT))
+        self.socket.connect((self.get_server_address(), self.SERVER_PORT))
 
         while True:
             received_message = self.socket.recv(1024)
@@ -99,6 +99,17 @@ class Client():
 
             json_board = json.dumps(updated_board)
             self.socket.sendall(bytes(json_board, 'utf-8'))
+
+    def get_server_address(self):
+        print('What is the server ip address?')
+        while True:
+            ip_address = input()
+            # regular expression to validate IP addresses
+            regex = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+            if re.search(regex, ip_address):
+                return ip_address
+            print('Invalid ip adress provided. Please try again:')
+
 
     def process_server_message(self, server_message):
         messages = server_message.split('-')
