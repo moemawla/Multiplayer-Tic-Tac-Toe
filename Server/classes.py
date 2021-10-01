@@ -243,13 +243,14 @@ class Server():
     This class is responsible for the following:
         - accepting client connections.
         - staring the game when 2 clients connect.
+        - managing the game session.
         - managing the players' turns.
         - sending/receiving messages to/from connected clients.
 
     Attributes:
         socket: An instance of the socket class.
         clients: A list containing instances of the Client class.
-        turn: An integer representing the index of the current player in the clients list. Default value is 0.
+        current_player: An instance of the Client class. Default value is None.
         PORT: A constant integer representing the port number which the socket will be bound to.
     """
 
@@ -259,7 +260,7 @@ class Server():
         """Initializes the Server class."""
         self.socket = None
         self.clients = []
-        self.turn = 0
+        self.current_player = None
 
     def run(self):
         """Runs the game session.
@@ -309,43 +310,41 @@ class Server():
 
         Plays the game in iterations as follows:
             - determines the current player.
-            - sends a message to the other player informing the player to wait.
+            - sends a message to the next player informing the player to wait.
             - sends the current board to the current player and gets the updated board back.
             - calls the process method from the Game instance and checks if the game ended.
             - if the game has ended, stops the game and sends the results to the players.
             - if the game has not ended, switches players' turns and continues to the next iteration.
         """
-        game = Game(self.clients[0], self.clients[1])
+        self.current_player = self.clients[0]
+        game = Game(self.current_player, self.next_player)
         
         # Inform the players that the game has started
         for player in self.clients:
             self.send_message_to_player(player, 'START')
 
         while True:
-            current_player = self.get_current_player()
-
-            # inform the other player that it is his opponent's turn
-            other_player = self.get_other_player(current_player)
-            self.send_message_to_player(other_player, 'WAIT')
+            # inform the next player that it is his opponent's turn
+            self.send_message_to_player(self.next_player, 'WAIT')
 
             # send the current game board to the current player and get the updated board back
             json_board = json.dumps(game.board)
-            updated_board = self.get_updated_board(current_player, json_board)
+            updated_board = self.get_updated_board(self.current_player, json_board)
 
             # check if the player sent nothing back, which means the player has disconnected
             if not updated_board:
-                print(f'{current_player.name} disconnected')
-                self.send_message_to_player(other_player, 'Oops! Your opponent disconnected')
+                print(f'{self.current_player.name} disconnected')
+                self.send_message_to_player(self.next_player, 'Oops! Your opponent disconnected')
                 return
 
             try:
                 # let the game process the updated board and check if the game has ended
-                game.process(current_player, updated_board)
+                game.process(self.current_player, updated_board)
                 if game.ended:
                     break
             except Exception as e:
                 # unexpected exception and the game must be stopped
-                print(f'Faced error during {current_player.name}\'s turn: ', e)
+                print(f'Faced error during {self.current_player.name}\'s turn: ', e)
                 for player in self.clients:
                     self.send_message_to_player(player, 'Oops! Game crashed')
                 return
@@ -355,16 +354,13 @@ class Server():
         self.send_game_results(game.winner)
 
     def change_turn(self):
-        """Sets the turn attribute to point to the next player."""
-        self.turn = 1 if self.turn == 0 else 0
+        """Sets the current_player attribute to point to the next player."""
+        self.current_player = self.next_player
 
-    def get_current_player(self):
-        """Returns a Client instance that represents the current player."""
-        return self.clients[self.turn]
-
-    def get_other_player(self, player):
+    @property
+    def next_player(self):
         """Returns a Client instance that represents the non-current player."""
-        if self.clients[0] == player:
+        if self.clients[0] == self.current_player:
             return self.clients[1]
         return self.clients[0]
 
