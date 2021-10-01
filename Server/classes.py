@@ -396,13 +396,12 @@ class Server():
         return json.loads(input)
 
     def send_message_to_player(self, player, message):
-        """Sends the message to the player.
+        """Adds a delimiter to the end of the message and sends it to the player.
 
         Args:
             player: An instance of the Client class representing a player.
             message: A string to be sent to the player.
         """
-        # add delimeter after the message and send
         message = f'{message}-'
         player.connection.sendall(bytes(message, 'utf-8'))
 
