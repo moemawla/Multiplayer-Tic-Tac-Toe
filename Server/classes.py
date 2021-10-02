@@ -248,7 +248,7 @@ class Server():
         - sending/receiving messages to/from connected clients.
 
     Attributes:
-        socket: An instance of the socket class.
+        socket: An instance of the socket class. Default value is None.
         clients: A list containing instances of the Client class.
         current_player: An instance of the Client class. Default value is None.
         PORT: A constant integer representing the port number which the socket will be bound to.
@@ -290,8 +290,13 @@ class Server():
     def accept_clients(self):
         """listens to and accepts 2 client connections.
 
+        Runs only if the socket is initialized.
+
         Each accepted connection is created as a Client object and added to the clients list attribute.
         """
+        if not self.socket:
+            return
+
         self.socket.listen()
         print(f'Listening for incoming connections on port {self.PORT}')
 

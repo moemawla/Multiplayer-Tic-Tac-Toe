@@ -112,7 +112,7 @@ class Client():
         - utilizing the GameHelper class to translate user's commands into a valid board to be passed back to the server.
 
     Attributes:
-        socket: An instance of the socket class.
+        socket: An instance of the socket class. Default value is None.
         play_game: A boolean that represents whether the game can be played or not. Used as a status flag.
         SERVER_PORT: A constant integer representing the port number which the server socket will be listening on.
     """
@@ -120,7 +120,7 @@ class Client():
 
     def __init__(self):
         """Initializes the Client class."""
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = None
         self.play_game = False
 
     def run(self):
@@ -134,6 +134,9 @@ class Client():
             - closes the socket at the end of the session.
         """
         try:
+            # initialize the socket
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
             # ask the user for the server ip and connect the socket to the server
             self.socket.connect((self.get_server_address(), self.SERVER_PORT))
 
@@ -159,6 +162,7 @@ class Client():
         """Plays the game on the client side.
 
         This method does the following:
+            - runs only if the socket is initialized.
             - keeps listening for server messages.
             - calls the process_server_message method.
             - checks if play_game attribute is False and quits the game.
@@ -166,6 +170,9 @@ class Client():
             - checks if no board was returned by the GameHelper and quits the game.
             - sends the updated board back to the server.
         """
+        if not self.socket:
+            return
+
         game_helper = GameHelper()
 
         # keep listening for server messages and process each message
@@ -215,7 +222,6 @@ class Client():
             if re.search(regex, ip_address):
                 return ip_address
             print('Invalid ip adress provided. Please try again:')
-
 
     def process_server_message(self, server_message):
         """Processes messgaes received from the server.
