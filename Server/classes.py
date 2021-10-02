@@ -382,7 +382,7 @@ class Server():
         # send the current game board to the player
         self.send_message_to_player(player, json_board)
 
-        # recieve the updated board from the player
+        # receive the updated board from the player
         connection = player.connection
         input = connection.recv(1024)
 

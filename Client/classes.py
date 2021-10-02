@@ -107,7 +107,7 @@ class Client():
 
     This class is responsible for the following:
         - connecting to the game server.
-        - recieving and processing server messages.
+        - receiving and processing server messages.
         - coordinating with the server to play during the user's turn.
         - utilizing the GameHelper class to translate user's commands into a valid board to be passed back to the server.
 
