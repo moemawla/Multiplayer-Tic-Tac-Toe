@@ -4,7 +4,7 @@ import os
 import re
 
 class GameHelper:
-    """A class that helps the client to playe the tic-tac-toe game over the network.
+    """A class that helps the client to play the tic-tac-toe game over the network.
 
     This class is responsible for:
         - validating the game board.
@@ -103,7 +103,7 @@ class GameHelper:
             return board
 
 class Client():
-    """A class that represents the client of the game.
+    """A class that represents a client playing the game.
 
     This class is responsible for the following:
         - connecting to the game server.
