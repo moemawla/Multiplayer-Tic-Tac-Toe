@@ -329,7 +329,7 @@ class Server():
             self.send_message_to_player(player, 'START')
 
         while True:
-            # inform the next player that it is his opponent's turn
+            # inform the next player that it is their opponent's turn
             self.send_message_to_player(self.next_player, 'WAIT')
 
             # send the current game board to the current player and get the updated board back
